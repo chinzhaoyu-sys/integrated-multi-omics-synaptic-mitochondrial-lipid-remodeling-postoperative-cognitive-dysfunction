@@ -1,0 +1,79 @@
+---
+title: "diff_enrich_analysis_su"
+author: "shi-nian"
+date: "2024-02-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 读取数据
+```{r}
+load('data/basic_data.RData')
+
+# 差异表达
+diff_su_pro <- read.csv("D:/爱谱蒂康/项目/HanJungang/workflow/data/Diff/Diff_serum_pro.csv")
+diff_su_pro$symbol <- sapply(diff_su_pro$pro, function(x) strsplit(x, '_')[[1]][2], simplify = T)
+
+# 富集结果
+## 炎症通路相关分子（inflammatory response）
+gene_up <- c('C3', 'Itih4', 'Hp', 'Ahsg', 'Orm1', 'Orm2', 'Elane')
+
+## 凝血通路相关分子（Blood Coagulation）
+gene_down <- c('Serpinc1', 'F10', 'Klkb1', 'Serpina1d', 'Serpina1a', 'Serpina1b', 'F13a1', 'F12', 'F13b', 'C8g', 'Tfpi')
+```
+
+# 绘制热图
+```{r}
+library(pheatmap)
+
+genes <- c(gene_up, gene_down)
+dataH <- mt_su_pro[genes,]
+cols <- colorRampPalette(c('#08306B','white','#C80813FF'))(100)
+
+ph1 <- pheatmap(dataH, color = cols,  cluster_rows = F, cluster_cols = F, scale = 'row', border_color = NA)
+
+```
+# 对血清样本的炎症和凝血通路进行GSVA打分
+```{r}
+data <- 
+```
+
+
+# 观察在血清中上/下调的蛋白质与在脑区中上/下调的蛋白质之间的关系
+```{r}
+load('data/diff_sp2.RData')
+
+diff_su_pro_up <- subset(diff_su_pro, Class == 'Up')
+diff_su_pro_down <- subset(diff_su_pro, Class == 'Down')
+
+
+# CA1 ------
+## Up
+intersect(diff_su_pro_up$symbol, diff_ca1_up$Gene)
+'Vcan: 细胞外基质的主要成分, 参与细胞粘附、增殖、增殖、迁移和血管生成, 结合透明质酸'
+
+## Down 
+intersect(diff_su_pro_down$symbol, diff_ca1_down$Gene)
+'Snx1, Gclm'
+
+# AM -----
+## Up
+intersect(diff_su_pro_up$symbol, diff_am_up$Gene)
+'Naa25'
+
+## Down
+intersect(diff_su_pro_down$symbol, diff_am_down$Gene)
+'character(0)'
+
+# FRA ------
+## Up
+intersect(diff_su_pro_up$symbol, diff_fra_up$Gene)
+'Pkm'
+
+## Down
+intersect(diff_su_pro_down$symbol, diff_fra_down$Gene)
+'Ahcyl1'
+```

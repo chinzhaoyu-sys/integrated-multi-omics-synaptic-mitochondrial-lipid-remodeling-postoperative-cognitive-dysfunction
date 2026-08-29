@@ -1,0 +1,25 @@
+---
+title: "组织溯源"
+author: "shi-nian"
+date: "2024-02-19"
+output: html_document
+---
+对血清中的蛋白质进行组织溯源，即追溯血清中的蛋白质来自于哪个组织
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 读取数据
+```{r}
+data <- read.delim("D:/爱谱蒂康/项目/database/HPA/rna_brain_hpa.tsv")
+x <- unique(data$Subregion)
+write.csv(data.frame(x = x), 'brain_subregion.csv')
+
+
+load('data/basic_data.RData')
+```
+
+```{r}
+```
+

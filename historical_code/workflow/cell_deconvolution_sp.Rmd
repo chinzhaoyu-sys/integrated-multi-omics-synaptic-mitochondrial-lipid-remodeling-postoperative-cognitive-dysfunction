@@ -1,0 +1,48 @@
+---
+title: "cell_deconvolution_sp"
+author: "shi-nian"
+date: "2024-02-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+对不同脑区的细胞类型进行解析
+ 
+# 加载数据
+```{r}
+load('data/basic_data.RData')
+source('D:/爱谱蒂康/项目/func/CalculateDEG.R')
+library(GSVA)
+
+cell_markers <- read.csv("D:/爱谱蒂康/项目/database/mouse cell atlas/Adult-Brain/Adult-Brain_markers.csv")
+genesets <- split(cell_markers$gene, f = cell_markers$alias)
+
+```
+
+# 差异表达
+```{r}
+gsva_cell_sp <- gsva(as.matrix(mt_sp_pro), gset.idx.list = genesets)
+
+# CA1 ------
+sampleInfo_ca1 <- subset(sampleInfo_sp, Comment == 'hippocampus')
+diff_cell_ca1 <- CalculateDEG.t2(gsva_cell_sp, rowname = 0, group = sampleInfo_ca1, group.exp = 'SampleID', 
+                            group.level = 'Group', class1 = 'P_CA1', class2 = 'C_CA1', FC.method = '-')
+
+# AM ------
+sampleInfo_am <- subset(sampleInfo_sp, Comment == 'thalamus')
+diff_cell_am <- CalculateDEG.t2(gsva_cell_sp, rowname = 0, group = sampleInfo_am, group.exp = 'SampleID', 
+                            group.level = 'Group', class1 = 'P_AM', class2 = 'C_AM')
+
+# FRA ------
+sampleInfo_fra <- subset(sampleInfo_sp, Comment == 'cortex')
+diff_cell_fra <- CalculateDEG.t2(gsva_cell_sp, rowname = 0, group = sampleInfo_fra, group.exp = 'SampleID', 
+                            group.level = 'Group', class1 = 'P_FRA', class2 = 'C_FRA')
+```
+
+# 保存数据
+```{r}
+save(list = c('cell_markers', 'genesets', 'gsva_cell_sp', 'diff_cell_ca1', 'diff_cell_am', 'diff_cell_fra'), file = 'data/cell_deconvolution_sp(无显著差异).RData')
+```
+

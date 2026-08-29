@@ -1,0 +1,373 @@
+---
+title: "diff_enrich_analysis"
+author: "shi-nian"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+对POCD前后不同脑区中差异表达的分子进行富集分析并绘制柱状图
+
+# 读取数据
+```{r}
+load('data/basic_data.RData')
+load('data/diff_sp2.RData')
+load('data/enrich_sp2.RData')
+```
+
+# 差异表达分析
+```{r}
+source('D:/爱谱蒂康/项目/func/CalculateDEG.R')
+
+# CA1 -------
+sampleInfo_ca1 <- subset(sampleInfo_sp, Comment == 'hippocampus')
+diff_ca1 <- CalculateDEG.t2(mt_sp_pro, rowname = 0, group = sampleInfo_ca1, group.exp = 'SampleID', 
+                            group.level = 'Group', class1 = 'P_CA1', class2 = 'C_CA1')
+
+diff_ca1_up <- subset(diff_ca1, FC > 1 & pvalue <= 0.05)
+diff_ca1_down <- subset(diff_ca1, FC < 1 & pvalue <= 0.05)
+
+# AM -------
+sampleInfo_am <- subset(sampleInfo_sp, Comment == 'thalamus')
+diff_am <- CalculateDEG.t2(mt_sp_pro, rowname = 0, group = sampleInfo_am, group.exp = 'SampleID', 
+                            group.level = 'Group', class1 = 'P_AM', class2 = 'C_AM')
+
+diff_am_up <- subset(diff_am, FC > 1 & pvalue <= 0.05)
+diff_am_down <- subset(diff_am, FC < 1 & pvalue <= 0.05)
+
+# FRA -------
+sampleInfo_fra <- subset(sampleInfo_sp, Comment == 'cortex')
+diff_fra <- CalculateDEG.t2(mt_sp_pro, rowname = 0, group = sampleInfo_fra, group.exp = 'SampleID', 
+                            group.level = 'Group', class1 = 'P_FRA', class2 = 'C_FRA')
+
+diff_fra_up <- subset(diff_fra, FC > 1 & pvalue <= 0.05)
+diff_fra_down <- subset(diff_fra, FC < 1 & pvalue <= 0.05)
+
+# 保存数据 --------
+save(list=c('diff_ca1', 'diff_ca1_up', 'diff_ca1_down', 
+            'diff_am', 'diff_am_up', 'diff_am_down',
+            'diff_fra', 'diff_fra_up', 'diff_fra_down'
+            ), 
+     file = 'data/diff2.RData')
+
+write.csv(diff_ca1, 'data/diff_ca1.csv')
+write.csv(diff_am, 'data/diff_am.csv')
+write.csv(diff_fra, 'data/diff_fra.csv')
+
+```
+
+# 通路富集
+```{r}
+source('D:/爱谱蒂康/项目/func/EnrichmentAnalysis.R')
+
+# CA1 ------
+en_ca1_up <- EnrichmentAnalysis.msigdbr(gene = diff_ca1_up$Gene, species = 'Mus musculus'); en_ca1_up <- en_ca1_up@result
+en_ca1_down <- EnrichmentAnalysis.msigdbr(gene = diff_ca1_down$Gene, species = 'Mus musculus'); en_ca1_down <- en_ca1_down@result
+
+# AM --------
+en_am_up <- EnrichmentAnalysis.msigdbr(gene = diff_am_up$Gene, species = 'Mus musculus'); en_am_up <- en_am_up@result
+en_am_down <- EnrichmentAnalysis.msigdbr(gene = diff_am_down$Gene, species = 'Mus musculus'); en_am_down <- en_am_down@result
+
+# FRA -------
+en_fra_up <- EnrichmentAnalysis.msigdbr(gene = diff_fra_up$Gene, species = 'Mus musculus'); en_fra_up <- en_fra_up@result
+en_fra_down <- EnrichmentAnalysis.msigdbr(gene = diff_fra_down$Gene, species = 'Mus musculus'); en_fra_down <- en_fra_down@result
+
+# engo_fra_down <- EnrichmentAnalysis.go(gene = diff_fra_down$Gene, species = 'mmu'); engo_fra_down <- engo_fra_down@result
+
+
+# 保存数据 --------
+save(list=c('en_ca1_up', 'en_ca1_down', 
+            'en_am_up', 'en_am_down',
+            'en_fra_up', 'en_fra_down'
+            ), 
+     file = 'data/enrich2.RData')
+
+write.csv(en_ca1_up, 'data/en_ca1_up.csv')
+write.csv(en_ca1_down, 'data/en_ca1_down.csv')
+
+write.csv(en_am_up, 'data/en_am_up.csv')
+write.csv(en_am_down, 'data/en_am_down.csv')
+
+write.csv(en_fra_up, 'data/en_fra_up.csv')
+write.csv(en_fra_down, 'data/en_fra_down.csv')
+
+
+```
+
+# 绘制差异表达蛋白质的火山图
+```{r}
+library(patchwork)
+source('D:/爱谱蒂康/项目/func/PlotVolcano.R')
+
+
+# 卡FC ------
+p_ca1 <- PlotVolcano_DEG2(diff_ca1, col.name='Gene',col.p='pvalue',col.FC='FC',doFCLog=T,label=T, cut.off.FC=1.2) + labs(title = 'CA1')
+p_am <- PlotVolcano_DEG2(diff_am, col.name='Gene',col.p='pvalue',col.FC='FC',doFCLog=T,label=T, cut.off.FC=1.2) + labs(title = 'AM')
+p_fra <- PlotVolcano_DEG2(diff_fra, col.name='Gene',col.p='pvalue',col.FC='FC',doFCLog=T,label=T, cut.off.FC=1.2) + labs(title = 'FRA')
+
+
+pdf('figure/volcano/volcano_diff_ca1_am_fra.pdf', width = 15, height = 5)
+print(p_ca1 | p_am | p_fra)
+dev.off()
+
+
+
+# 不卡FC --------
+p_ca1 <- PlotVolcano_DEG3(diff_ca1, col.name='Gene',col.p='pvalue',col.FC='FC',doFCLog=T,label=T) + labs(title = 'CA1')
+p_am <- PlotVolcano_DEG3(diff_am, col.name='Gene',col.p='pvalue',col.FC='FC',doFCLog=T,label=T) + labs(title = 'AM')
+p_fra <- PlotVolcano_DEG3(diff_fra, col.name='Gene',col.p='pvalue',col.FC='FC',doFCLog=T,label=T) + labs(title = 'FRA')
+
+
+pdf('figure/volcano/volcano_diff_ca1_am_fra_v2.pdf', width = 15, height = 5)
+print(p_ca1 | p_am | p_fra)
+dev.off()
+```
+
+# 绘制差异表达蛋白质的通路富集弦图
+```{r}
+source('D:/爱谱蒂康/项目/func/PlotCirco.R')
+
+# CA1 Up ---------
+process <- c("REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT",
+             'REACTOME_PYRUVATE_METABOLISM_AND_CITRIC_ACID_TCA_CYCLE',
+             'REACTOME_DISEASES_ASSOCIATED_WITH_GLYCOSAMINOGLYCAN_METABOLISM')
+cols <- RColorBrewer::brewer.pal(3, 'Set2')
+p1 <- CircoGenePath_full(enrich = en_ca1_up, diff = diff_ca1_up, gene_col = 'Gene', 
+                         FC_col = 'FC', process = process, space = 0.02, gene.order = 'logFC',
+                         gene.space = 0.25, gene.size = 3, ribbon.col = cols) + labs(title = 'CA1 UP')
+
+
+pdf('figure/circo/enrich_circo_ca1_up.pdf', width = 3.7, height = 5)
+print(p1)
+dev.off()
+
+
+# CA1 Down --------
+process <- c('REACTOME_FOLDING_OF_ACTIN_BY_CCT_TRIC', 
+             'MODY_HIPPOCAMPUS_NEONATAL', 
+             'FU_INTERACT_WITH_ALKBH8', 
+             'REACTOME_DEGRADATION_OF_BETA_CATENIN_BY_THE_DESTRUCTION_COMPLEX', 
+             'KEGG_PROTEASOME')
+
+cols <- RColorBrewer::brewer.pal(5, 'Set3')
+
+p2 <- CircoGenePath_full(enrich = en_ca1_down, diff = diff_ca1_down, gene_col = 'Gene', 
+                         FC_col = 'FC', process = process, space = 0.02, gene.order = 'logFC',
+                         gene.space = 0.25, gene.size = 3, ribbon.col = cols) + labs(title = 'CA1 Down')
+
+pdf('figure/circo/enrich_circo_ca1_down.pdf', width = 3.7, height = 5)
+print(p2)
+dev.off()
+
+
+# AM UP --------
+process <- c('KEGG_OXIDATIVE_PHOSPHORYLATION', 
+             'KEGG_HUNTINGTONS_DISEASE', 
+             'KEGG_PARKINSONS_DISEASE', 
+             'KEGG_ALZHEIMERS_DISEASE')
+
+cols <- RColorBrewer::brewer.pal(4, 'Set2')
+
+p3 <- CircoGenePath_full(enrich = en_am_up, diff = diff_am_up, gene_col = 'Gene', 
+                         FC_col = 'FC', process = process, space = 0.02, gene.order = 'logFC',
+                         gene.space = 0.25, gene.size = 3, ribbon.col = cols) + labs(title = 'AM Up')
+
+pdf('figure/circo/enrich_circo_am_up.pdf', width = 3.7, height = 5)
+print(p3)
+dev.off()
+
+
+# AM Down --------
+process <- c('REACTOME_EUKARYOTIC_TRANSLATION_INITIATION',
+             'REACTOME_SIGNALING_BY_ROBO_RECEPTORS',
+             'REACTOME_CELLULAR_RESPONSE_TO_STARVATION')
+
+cols <- RColorBrewer::brewer.pal(3, 'Set3')
+
+p4 <- CircoGenePath_full(enrich = en_am_down, diff = diff_am_down, gene_col = 'Gene', 
+                         FC_col = 'FC', process = process, space = 0.02, gene.order = 'logFC',
+                         gene.space = 0.25, gene.size = 3, ribbon.col = cols) + labs(title = 'AM Down')
+
+pdf('figure/circo/enrich_circo_am_down.pdf', width = 3.7, height = 5)
+print(p4)
+dev.off()
+
+# FRA Up --------
+process <- c('REACTOME_L1CAM_INTERACTIONS', 
+             'PID_ERBB1_DOWNSTREAM_PATHWAY', 
+             'PID_PDGFRB_PATHWAY')
+
+cols <- RColorBrewer::brewer.pal(3, 'Set2')
+
+p5 <- CircoGenePath_full(enrich = en_fra_up, diff = diff_fra_up, gene_col = 'Gene', 
+                         FC_col = 'FC', process = process, space = 0.02, gene.order = 'logFC',
+                         gene.space = 0.25, gene.size = 3, ribbon.col = cols) + labs(title = 'FRA Up')
+
+pdf('figure/circo/enrich_circo_fra_up.pdf', width = 3.7, height = 5)
+print(p5)
+dev.off()
+
+
+# FRA Down --------
+process <- c('REACTOME_DAG_AND_IP3_SIGNALING', 
+             'REACTOME_FACTORS_INVOLVED_IN_MEGAKARYOCYTE_DEVELOPMENT_AND_PLATELET_PRODUCTION',
+             'REACTOME_G_PROTEIN_MEDIATED_EVENTS', 
+             'REACTOME_KINESINS')
+
+cols <- RColorBrewer::brewer.pal(4, 'Set3')
+
+p6 <- CircoGenePath_full(enrich = en_fra_down, diff = diff_fra_down, gene_col = 'Gene', 
+                         FC_col = 'FC', process = process, space = 0.02, gene.order = 'logFC',
+                         gene.space = 0.25, gene.size = 3, ribbon.col = cols) + labs(title = 'FRA Down')
+
+pdf('figure/circo/enrich_circo_fra_down.pdf', width = 3.7, height = 5)
+print(p6)
+dev.off()
+```
+
+
+# 绘制差异表达蛋白质的通路富集柱形图
+```{r}
+source('D:/爱谱蒂康/项目/func/PlotGOBar.R')
+
+# CA1 -------
+process_up <- c("REACTOME_THE_CITRIC_ACID_TCA_CYCLE_AND_RESPIRATORY_ELECTRON_TRANSPORT",
+               'REACTOME_PYRUVATE_METABOLISM_AND_CITRIC_ACID_TCA_CYCLE',
+               'REACTOME_DISEASES_ASSOCIATED_WITH_GLYCOSAMINOGLYCAN_METABOLISM')
+
+process_down <- c('REACTOME_FOLDING_OF_ACTIN_BY_CCT_TRIC', 
+                   'MODY_HIPPOCAMPUS_NEONATAL', 
+                   'FU_INTERACT_WITH_ALKBH8', 
+                   'REACTOME_DEGRADATION_OF_BETA_CATENIN_BY_THE_DESTRUCTION_COMPLEX', 
+                   'KEGG_PROTEASOME')
+
+up_ca1 <- subset(en_ca1_up,  Description %in% process_up)
+down_ca1 <- subset(en_ca1_down,  Description %in% process_down)
+
+p1 <- PlotGOBar.updown(up_ca1, down_ca1, show.cat.up = 3, show.cat.down = 5)
+pdf('figure/barplot/enrich_bar_ca1.pdf', width = 15, height = 5)
+print(p1)
+dev.off()
+
+
+# AM --------
+process_up <- c('KEGG_OXIDATIVE_PHOSPHORYLATION', 
+                 'KEGG_HUNTINGTONS_DISEASE', 
+                 'KEGG_PARKINSONS_DISEASE', 
+                 'KEGG_ALZHEIMERS_DISEASE')
+
+process_down <- c('REACTOME_EUKARYOTIC_TRANSLATION_INITIATION',
+                   'REACTOME_SIGNALING_BY_ROBO_RECEPTORS',
+                   'REACTOME_CELLULAR_RESPONSE_TO_STARVATION')
+
+
+up_am <- subset(en_am_up,  Description %in% process_up)
+down_am <- subset(en_am_down,  Description %in% process_down)
+
+p2 <- PlotGOBar.updown(up_am, down_am, show.cat.up = 4, show.cat.down = 3)
+pdf('figure/barplot/enrich_bar_am.pdf', width = 15, height = 5)
+print(p2)
+dev.off()
+
+# FRA --------
+process_up <- c('REACTOME_L1CAM_INTERACTIONS', 
+                 'PID_ERBB1_DOWNSTREAM_PATHWAY', 
+                 'PID_PDGFRB_PATHWAY')
+
+process_down <- c('REACTOME_DAG_AND_IP3_SIGNALING', 
+                   'REACTOME_FACTORS_INVOLVED_IN_MEGAKARYOCYTE_DEVELOPMENT_AND_PLATELET_PRODUCTION',
+                   'REACTOME_G_PROTEIN_MEDIATED_EVENTS', 
+                   'REACTOME_KINESINS')
+
+
+up_fra <- subset(en_fra_up,  Description %in% process_up)
+down_fra <- subset(en_fra_down,  Description %in% process_down)
+
+p3 <- PlotGOBar.updown(up_fra, down_fra, show.cat.up = 3, show.cat.down = 4)
+pdf('figure/barplot/enrich_bar_fra.pdf', width = 15, height = 5)
+print(p3)
+dev.off()
+
+
+```
+
+# 绘制差异表达蛋白质的箱型图
+```{r}
+source('D:/爱谱蒂康/项目/func/PlotBoxViolin.R')
+data <- merge(sampleInfo_sp, t(mt_sp_pro), by.x = 'SampleID', by.y = 0)
+```
+
+## CA1
+```{r}
+# CA1
+data_ca1 <- subset(data, Comment == 'hippocampus')
+cols <- c('#9CC0CD', '#CE5455'); names(cols) <- c('C_CA1', 'P_CA1')
+
+## CA1 UP ------
+genes <- c('Ndufb8', 'Ndufb5', 'Sdhd', 'Ogdh', 'Idh3g')
+p1 <- f_patch2(genes, f_in = f_boxplot2, ncol = 3, data = data_ca1, x = 'Group', col_pal = cols, filter_y = NA, f = NA, plot = 'b',p.method = 't.test',compare = list(c('C_CA1', 'P_CA1')),verbose = T)
+
+pdf('figure/boxplot/boxplot_sp_pro_ca1_up.pdf', width = 7.5, height = 8)
+print(p1)
+dev.off()
+
+## CA1 Down --------
+genes <- c('Psmc1', 'Psma5', 'Psmb6', 'Psmd12', 'Cct3', 'Cct5', 'Cct7')
+p1 <- f_patch2(genes, f_in = f_boxplot2, ncol = 3, data = data_ca1, x = 'Group', col_pal = cols, filter_y = NA, f = NA, plot = 'b',p.method = 't.test',compare = list(c('C_CA1', 'P_CA1')),verbose = T)
+
+pdf('figure/boxplot/boxplot_sp_pro_ca1_down.pdf', width = 7.5, height = 12)
+print(p1)
+dev.off()
+
+```
+
+## AM 
+```{r}
+# AM
+data_am <- subset(data, Comment == 'thalamus')
+cols <- c('#9CC0CD', '#CE5455'); names(cols) <- c('C_AM', 'P_AM')
+
+## AM UP -------
+genes <- c('Ndufb2','Ndufa3','Ndufb4', 'Ndufs4', 'Ndufa5','Ndufa6', 'Ndufa10', 'Cox6b1', 'Sdhd', 'Vdac3', 'Ppid', 'Tfam')
+p2 <- f_patch2(genes, f_in = f_boxplot2, ncol = 3, data = data_am, x = 'Group', col_pal = cols, filter_y = NA, f = NA, plot = 'b',p.method = 't.test',compare = list(c('C_AM', 'P_AM')),verbose = T)
+
+pdf('figure/boxplot/boxplot_sp_pro_am_up.pdf', width = 7.5, height = 16)
+print(p2)
+dev.off()
+
+## AM Down ------
+genes <- c('Eif2s1', 'Eif4h', 'Psmc4', 'Rpsa', 'Rpl12', 'Rps28', 'Rpl30')
+p2 <- f_patch2(genes, f_in = f_boxplot2, ncol = 3, data = data_am, x = 'Group', col_pal = cols, filter_y = NA, f = NA, plot = 'b',p.method = 't.test',compare = list(c('C_AM', 'P_AM')),verbose = T)
+
+pdf('figure/boxplot/boxplot_sp_pro_am_down.pdf', width = 7.5, height = 12)
+print(p2)
+dev.off()
+```
+
+## FRA
+```{r}
+# FRA
+data_fra <- subset(data, Comment == 'cortex')
+cols <- c('#9CC0CD', '#CE5455'); names(cols) <- c('C_FRA', 'P_FRA')
+
+
+# FRA UP -------
+genes <- c('Sptbn1', 'Sptan1', 'Dlg4', 'Ezr', 'Actr3', 'Ap2b1', 'Ywhah', 'Ppp2r1a', 'Map2k1', 'Map2k2')
+p3 <- f_patch2(genes, f_in = f_boxplot2, ncol = 3, data = data_fra, x = 'Group', col_pal = cols, filter_y = NA, f = NA, plot = 'b',p.method = 't.test',compare = list(c('C_FRA', 'P_FRA')),verbose = F)
+
+pdf('figure/boxplot/boxplot_sp_pro_fra_up.pdf', width = 7.5, height = 16)
+print(p3)
+dev.off()
+
+# FRA Down ------
+genes <- c('Klc1', 'Kif21b', 'Prkar1a', 'Ahcyl1')
+p3 <- f_patch2(genes, f_in = f_boxplot2, ncol = 3, data = data_fra, x = 'Group', col_pal = cols, filter_y = NA, f = NA, plot = 'b',p.method = 't.test',compare = list(c('C_FRA', 'P_FRA')),verbose = F)
+
+pdf('figure/boxplot/boxplot_sp_pro_fra_down.pdf', width = 7.5, height = 8)
+print(p3)
+dev.off()
+```
+
